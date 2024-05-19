@@ -1,5 +1,6 @@
 ﻿@page "/DataTables"
 @inject HttpClient Http
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Data Tables</PageTitle>
@@ -15,25 +16,34 @@
             <button class="nav-link @((activeTab == 2) ? "active" : "")" @onclick='() => SetActiveTab(2)'>Businesses</button>
         </li>
     </ul>
+    <div class="d-flex justify-content-between my-2">
+        <div>
+            <button class="btn btn-primary my-2" @onclick="RefreshData">Refresh</button>
+            <button class="btn btn-success my-2" @onclick="() => Functions.ExportToExcel(JSRuntime, activeTab, activeTab == 1 ? filteredUsers : filteredBusinesses)">Export to Excel</button>
+            <button class="btn btn-success my-2" @onclick="() => Functions.ExportToCsv(JSRuntime, activeTab, activeTab == 1 ? filteredUsers : filteredBusinesses)">Export to CSV</button>
+        </div>
+        <div class="d-flex">
+            <input type="text" class="form-control" placeholder="Search..." @bind="searchQuery" @bind:event="oninput" />
+            <button class="btn btn-info">Search</button>
+        </div>
+    </div>
 
-    <button class="btn btn-primary my-2" @onclick="RefreshData">Refresh</button>
-
-    <table class="table table-striped accordion-body table-bordered table-responsive table-hover">
+    <table id="datatable" name="datatable" class="table table-striped accordion-body table-bordered table-responsive table-hover sortable">
         @if (activeTab == 1)
         {
             <thead>
                 <tr>
-                    <th>UserID</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>AccountType</th>
+                    <th @onclick="() => SortTable(nameof(Users.UserID))">UserID <span class="fa @(GetSortStyle(nameof(Users.UserID)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Users.Username))">Username <span class="fa @(GetSortStyle(nameof(Users.Username)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Users.Email))">Email <span class="fa @(GetSortStyle(nameof(Users.Email)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Users.AccountType))">AccountType <span class="fa @(GetSortStyle(nameof(Users.AccountType)))"></span></th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                @if (users != null)
+                @if (filteredUsers != null)
                 {
-                    @foreach (var user in users)
+                    @foreach (var user in filteredUsers)
                     {
                         <tr>
                             <td>@user.UserID</td>
@@ -52,20 +62,20 @@
         {
             <thead>
                 <tr>
-                    <th>BusinessID</th>
-                    <th>BusinessName</th>
-                    <th>OwnerUserID</th>
-                    <th>BusinessType</th>
-                    <th>Location</th>
-                    <th>Contact</th>
-                    <th>Rating</th>
+                    <th @onclick="() => SortTable(nameof(Businesses.BusinessID))">BusinessID <span class="fa @(GetSortStyle(nameof(Businesses.BusinessID)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.BusinessName))">BusinessName <span class="fa @(GetSortStyle(nameof(Businesses.BusinessName)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.OwnerUserID))">OwnerUserID <span class="fa @(GetSortStyle(nameof(Businesses.OwnerUserID)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.BusinessType))">BusinessType <span class="fa @(GetSortStyle(nameof(Businesses.BusinessType)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.Location))">Location <span class="fa @(GetSortStyle(nameof(Businesses.Location)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.Contact))">Contact <span class="fa @(GetSortStyle(nameof(Businesses.Contact)))"></span></th>
+                    <th @onclick="() => SortTable(nameof(Businesses.Rating))">Rating <span class="fa @(GetSortStyle(nameof(Businesses.Rating)))"></span></th>
                     <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-                @if (businesses != null)
+                @if (filteredBusinesses != null)
                 {
-                    @foreach (var business in businesses)
+                    @foreach (var business in filteredBusinesses)
                     {
                         <tr>
                             <td>@business.BusinessID</td>
@@ -91,9 +101,14 @@
 @code {
     private List<Users>? users;
     private List<Businesses>? businesses;
+    private List<Users>? filteredUsers;
+    private List<Businesses>? filteredBusinesses;
     private int activeTab = 1;
     private bool isModalVisible = false;
     private object? modalContent;
+    private bool IsSortedAscending;
+    private string CurrentSortColumn;
+    private string searchQuery = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -105,22 +120,26 @@
         if (activeTab == 1)
         {
             users = await Http.GetFromJsonAsync<List<Users>>("https://localhost:7020/api/WoofDatabase/GetAllUsers");
+            filteredUsers = users;
         }
         else if (activeTab == 2)
         {
             businesses = await Http.GetFromJsonAsync<List<Businesses>>("https://localhost:7020/api/WoofDatabase/GetBusinesses");
+            filteredBusinesses = businesses;
         }
     }
 
     private async Task RefreshData()
     {
         await FetchData();
+        FilterData();
     }
 
     private async Task SetActiveTab(int tab)
     {
         activeTab = tab;
         await FetchData();
+        FilterData();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -134,7 +153,77 @@
     {
         isModalVisible = false;
     }
-}
 
+    private string GetSortStyle(string columnName)
+    {
+        if (CurrentSortColumn != columnName)
+        {
+            return string.Empty;
+        }
+        return IsSortedAscending ? "fa-sort-up" : "fa-sort-down";
+    }
+
+    private void SortTable(string columnName)
+    {
+        if (columnName != CurrentSortColumn)
+        {
+            if (activeTab == 1 && filteredUsers != null)
+            {
+                filteredUsers = filteredUsers.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+            }
+            else if (activeTab == 2 && filteredBusinesses != null)
+            {
+                filteredBusinesses = filteredBusinesses.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+            }
+            CurrentSortColumn = columnName;
+            IsSortedAscending = true;
+        }
+        else
+        {
+            if (IsSortedAscending)
+            {
+                if (activeTab == 1 && filteredUsers != null)
+                {
+                    filteredUsers = filteredUsers.OrderByDescending(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+                }
+                else if (activeTab == 2 && filteredBusinesses != null)
+                {
+                    filteredBusinesses = filteredBusinesses.OrderByDescending(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+                }
+            }
+            else
+            {
+                if (activeTab == 1 && filteredUsers != null)
+                {
+                    filteredUsers = filteredUsers.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+                }
+                else if (activeTab == 2 && filteredBusinesses != null)
+                {
+                    filteredBusinesses = filteredBusinesses.OrderBy(x => x.GetType().GetProperty(columnName).GetValue(x, null)).ToList();
+                }
+            }
+
+            IsSortedAscending = !IsSortedAscending;
+        }
+        
+    }
+
+    private void FilterData()
+    {
+        if (activeTab == 1 && users != null)
+        {
+            filteredUsers = users.Where(u => u.Username.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                             u.Email.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                             u.AccountType.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        else if (activeTab == 2 && businesses != null)
+        {
+            filteredBusinesses = businesses.Where(b => b.BusinessName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                                       b.BusinessType.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                                       b.Location.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+                                                       b.Contact.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+}
 
 
