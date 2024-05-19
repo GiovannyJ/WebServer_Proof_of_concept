@@ -1,0 +1,49 @@
+﻿<div class="modal fade @(IsVisible ? "show" : "")" tabindex="-1" role="dialog" style="display:@(IsVisible ? "block" : "none");">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Details</h5>
+                <button type="button" class="btn-close" @onclick="Close" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (Content is Users user)
+                {
+                    <p><strong>UserID:</strong> @user.UserID</p>
+                    <p><strong>Username:</strong> @user.Username</p>
+                    <p><strong>Email:</strong> @user.Email</p>
+                    <p><strong>AccountType:</strong> @user.AccountType</p>
+                }
+                else if (Content is Businesses business)
+                {
+                    <p><strong>BusinessID:</strong> @business.BusinessID</p>
+                    <p><strong>BusinessName:</strong> @business.BusinessName</p>
+                    <p><strong>OwnerUserID:</strong> @business.OwnerUserID</p>
+                    <p><strong>BusinessType:</strong> @business.BusinessType</p>
+                    <p><strong>Location:</strong> @business.Location</p>
+                    <p><strong>Contact:</strong> @business.Contact</p>
+                    <p><strong>Rating:</strong> @business.Rating</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsVisibleChanged { get; set; }
+
+    [Parameter]
+    public object? Content { get; set; }
+
+    private async Task Close()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(IsVisible);
+    }
+}
+
+
+

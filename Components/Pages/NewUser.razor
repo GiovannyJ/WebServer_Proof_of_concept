@@ -1,0 +1,70 @@
+﻿@page "/NewUser"
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<h3>Create New User</h3>
+
+<EditForm Model="@newUser" OnValidSubmit="HandleValidSubmit" FormName="CreateNewUser">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="userName">Username:</label>
+        <InputText required id="userName" @bind-Value="newUser.Username" />
+    </div>
+    <div>
+        <label for="email">Email:</label>
+        <InputText required id="email" @bind-Value="newUser.Email" />
+    </div>
+    <div>
+        <label for="password">Password:</label>
+        <InputText required id="password" @bind-Value="newUser.Password" />
+    </div>
+    <div>
+        <label for="confirmPassword">Confirm Password:</label>
+        <InputText required id="confirmPassword" @bind-Value="confirmPassword" />
+    </div>
+
+    <button type="submit">Submit</button>
+</EditForm>
+
+<SuccessModal IsVisible="@isSuccessModalVisible" IsVisibleChanged="@((value) => isSuccessModalVisible = value)" />
+<ErrorModal IsVisible="@isErrorModalVisible" IsVisibleChanged="@((value) => isErrorModalVisible = value)" />
+
+@code {
+    private Users newUser = new Users();
+    private bool isSuccessModalVisible = false;
+    private bool isErrorModalVisible = false;
+    private string? confirmPassword;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if(newUser.Password != confirmPassword){
+                isErrorModalVisible = true;
+                return;
+            }
+
+            var json = System.Text.Json.JsonSerializer.Serialize(newUser);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await Http.PostAsync("https://localhost:7020/api/WoofDatabase/NewBusiness", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Business created successfully");
+                isSuccessModalVisible = true;
+            }
+            else
+            {
+                Console.WriteLine("Error creating business");
+                isErrorModalVisible = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+}

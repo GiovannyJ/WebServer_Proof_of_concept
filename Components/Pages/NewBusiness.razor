@@ -1,0 +1,85 @@
+﻿@page "/NewBusiness"
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<h3>Create New Business</h3>
+
+<EditForm Model="@newBusiness" OnValidSubmit="HandleValidSubmit" FormName="CreateNewBusiness">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div>
+        <label for="businessName">Business Name:</label>
+        <InputText required id="businessName" @bind-Value="newBusiness.BusinessName" />
+    </div>
+    <div>
+        <label for="ownerUserID">Owner User ID:</label>
+        <InputNumber required id="ownerUserID" @bind-Value="newBusiness.OwnerUserID" />
+    </div>
+    <div>
+        <label for="businessType">Business Type:</label>
+        <InputText required id="businessType" @bind-Value="newBusiness.BusinessType" />
+    </div>
+    <div>
+        <label for="location">Location:</label>
+        <InputText required id="location" @bind-Value="newBusiness.Location" />
+    </div>
+    <div>
+        <label for="contact">Contact:</label>
+        <InputText required id="contact" @bind-Value="newBusiness.Contact" />
+    </div>
+    <div>
+        <label for="businessDescription">Business Description:</label>
+        <InputText required id="businessDescription" @bind-Value="newBusiness.BusinessDescription" />
+    </div>
+    <div>
+        <label for="leashPolicy">Leash Policy:</label>
+        <InputCheckbox id="leashPolicy" @bind-Value="newBusiness.LeashPolicy" />
+    </div>
+    <div>
+        <label for="disabledFriendly">Disabled Friendly:</label>
+        <InputCheckbox id="disabledFriendly" @bind-Value="newBusiness.DisabledFriendly" />
+    </div>
+    <div>
+        <label for="geoLocation">Geo Location:</label>
+        <InputText id="geoLocation" @bind-Value="newBusiness.GeoLocation" />
+    </div>
+
+    <button type="submit">Submit</button>
+</EditForm>
+
+<SuccessModal IsVisible="@isModalVisible" IsVisibleChanged="@((value) => isModalVisible = value)" />
+<ErrorModal IsVisible="@isErrorModalVisible" IsVisibleChanged="@((value) => isErrorModalVisible = value)" />
+
+@code {
+    private Businesses newBusiness = new Businesses();
+    private bool isModalVisible = false;
+    private bool isErrorModalVisible = false;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(newBusiness);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await Http.PostAsync("https://localhost:7020/api/WoofDatabase/NewBusiness", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Business created successfully");
+                isModalVisible = true;
+            }
+            else
+            {
+                Console.WriteLine("Error creating business");
+                isErrorModalVisible = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+}
+

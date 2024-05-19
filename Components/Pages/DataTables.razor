@@ -1,0 +1,140 @@
+﻿@page "/DataTables"
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<PageTitle>Data Tables</PageTitle>
+
+<h3>Data Tables</h3>
+
+<div>
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <button class="nav-link @((activeTab == 1) ? "active" : "")" @onclick='() => SetActiveTab(1)'>Users</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @((activeTab == 2) ? "active" : "")" @onclick='() => SetActiveTab(2)'>Businesses</button>
+        </li>
+    </ul>
+
+    <button class="btn btn-primary my-2" @onclick="RefreshData">Refresh</button>
+
+    <table class="table table-striped accordion-body table-bordered table-responsive table-hover">
+        @if (activeTab == 1)
+        {
+            <thead>
+                <tr>
+                    <th>UserID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>AccountType</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (users != null)
+                {
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td>@user.UserID</td>
+                            <td>@user.Username</td>
+                            <td>@user.Email</td>
+                            <td>@user.AccountType</td>
+                            <td>
+                                <button class="btn btn-info my-2" @onclick='() => ShowModal(user)'>Show in Modal</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        }
+        else if (activeTab == 2)
+        {
+            <thead>
+                <tr>
+                    <th>BusinessID</th>
+                    <th>BusinessName</th>
+                    <th>OwnerUserID</th>
+                    <th>BusinessType</th>
+                    <th>Location</th>
+                    <th>Contact</th>
+                    <th>Rating</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (businesses != null)
+                {
+                    @foreach (var business in businesses)
+                    {
+                        <tr>
+                            <td>@business.BusinessID</td>
+                            <td>@business.BusinessName</td>
+                            <td>@business.OwnerUserID</td>
+                            <td>@business.BusinessType</td>
+                            <td>@business.Location</td>
+                            <td>@business.Contact</td>
+                            <td>@business.Rating</td>
+                            <td>
+                                <button class="btn btn-info my-2" @onclick='() => ShowModal(business)'>Show in Modal</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        }
+    </table>
+</div>
+
+<DataModal IsVisible="@isModalVisible" IsVisibleChanged="@((value) => isModalVisible = value)" Content="@modalContent" />
+
+@code {
+    private List<Users>? users;
+    private List<Businesses>? businesses;
+    private int activeTab = 1;
+    private bool isModalVisible = false;
+    private object? modalContent;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchData();
+    }
+
+    private async Task FetchData()
+    {
+        if (activeTab == 1)
+        {
+            users = await Http.GetFromJsonAsync<List<Users>>("https://localhost:7020/api/WoofDatabase/GetAllUsers");
+        }
+        else if (activeTab == 2)
+        {
+            businesses = await Http.GetFromJsonAsync<List<Businesses>>("https://localhost:7020/api/WoofDatabase/GetBusinesses");
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await FetchData();
+    }
+
+    private async Task SetActiveTab(int tab)
+    {
+        activeTab = tab;
+        await FetchData();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void ShowModal(object item)
+    {
+        modalContent = item;
+        isModalVisible = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalVisible = false;
+    }
+}
+
+
+
